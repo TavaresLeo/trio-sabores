@@ -1,0 +1,2 @@
+import { NextResponse } from 'next/server'; import { quoteDelivery } from '@/lib/delivery';
+export async function POST(req:Request){try{const {distanceKm}=await req.json();const result=await quoteDelivery(Number(distanceKm));return NextResponse.json(result,{status:result.available?200:422});}catch(e){return NextResponse.json({error:e instanceof Error?e.message:'Falha no cálculo.'},{status:400});}}

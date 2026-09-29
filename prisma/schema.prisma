@@ -1,0 +1,173 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum ProductAvailability {
+  AVAILABLE
+  SOLD_OUT
+  PREORDER
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CARD
+  PIX
+  CASH_ON_DELIVERY
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  EXPIRED
+}
+
+enum FulfillmentType {
+  DELIVERY
+  PICKUP
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  cpfEncrypted String?
+  phone        String?
+  role         Role     @default(USER)
+  sessionVersion Int    @default(0)
+  mustChangePassword Boolean @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  addresses    Address[]
+  orders       Order[]
+}
+
+model Address {
+  id           String   @id @default(cuid())
+  userId       String?
+  label        String   @default("Principal")
+  cep          String
+  street       String
+  number       String
+  complement   String?
+  neighborhood String
+  city         String
+  state        String
+  createdAt    DateTime @default(now())
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  orders       Order[]
+}
+
+model Category {
+  id        String    @id @default(cuid())
+  name      String    @unique
+  slug      String    @unique
+  sortOrder Int       @default(0)
+  active    Boolean   @default(true)
+  products  Product[]
+}
+
+model Product {
+  id           String             @id @default(cuid())
+  categoryId   String
+  name         String
+  slug         String             @unique
+  description  String
+  priceCents   Int
+  imageUrl     String
+  gallery      Json?
+  badge        String?
+  availability ProductAvailability @default(AVAILABLE)
+  featured     Boolean            @default(false)
+  rating       Float              @default(5)
+  reviewsCount Int                @default(0)
+  notes        String?
+  sortOrder    Int                @default(0)
+  createdAt    DateTime           @default(now())
+  updatedAt    DateTime           @updatedAt
+  category     Category           @relation(fields: [categoryId], references: [id])
+  orderItems   OrderItem[]
+}
+
+model DeliveryRule {
+  id             String @id @default(cuid())
+  minKm          Decimal @db.Decimal(6,2)
+  maxKm          Decimal @db.Decimal(6,2)
+  baseFeeCents   Int
+  extraFeeCentsPerKm Int @default(0)
+  enabled        Boolean @default(true)
+}
+
+model Coupon {
+  id              String   @id @default(cuid())
+  code            String   @unique
+  percentageOff  Int?
+  fixedOffCents  Int?
+  minSubtotalCents Int?
+  active          Boolean  @default(true)
+  startsAt        DateTime?
+  endsAt          DateTime?
+}
+
+model Order {
+  id               String         @id @default(cuid())
+  publicNumber     String         @unique
+  userId           String?
+  addressId        String?
+  fulfillmentType  FulfillmentType @default(DELIVERY)
+  status           OrderStatus    @default(PENDING)
+  paymentMethod    PaymentMethod
+  paymentStatus    PaymentStatus  @default(PENDING)
+  subtotalCents    Int
+  deliveryFeeCents Int
+  discountCents    Int            @default(0)
+  totalCents       Int
+  distanceKm       Decimal?       @db.Decimal(6,2)
+  notes            String?
+  cashChangeForCents Int?
+  customerName     String
+  customerEmail    String
+  customerPhone    String
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  user             User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  address          Address?       @relation(fields: [addressId], references: [id], onDelete: SetNull)
+  items            OrderItem[]
+}
+
+model OrderItem {
+  id             String @id @default(cuid())
+  orderId        String
+  productId      String
+  productName    String
+  quantity       Int
+  unitPriceCents Int
+  subtotalCents  Int
+  order          Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product        Product @relation(fields: [productId], references: [id])
+}
+
+model SiteSetting {
+  id            String   @id @default(cuid())
+  key           String   @unique
+  value         String
+  updatedAt     DateTime @updatedAt
+}

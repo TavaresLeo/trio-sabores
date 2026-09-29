@@ -1,0 +1,62 @@
+{
+  "name": "trio-sabores",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "prisma generate && next build",
+    "start": "next start",
+    "lint": "eslint .",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:studio": "prisma studio",
+    "format": "prettier --write ."
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "7.10.0",
+    "@prisma/client": "7.10.0",
+    "@vercel/blob": "2.8.0",
+    "bcryptjs": "3.0.2",
+    "dotenv": "17.2.2",
+    "jose": "6.1.0",
+    "lucide-react": "0.468.0",
+    "next": "16.3.0",
+    "pg": "8.16.3",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "react-hook-form": "7.63.0",
+    "zod": "4.1.11",
+    "zustand": "5.0.8"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "3.3.1",
+    "@tailwindcss/postcss": "4.1.13",
+    "@types/node": "24.10.0",
+    "eslint": "9.35.0",
+    "eslint-config-next": "16.3.0",
+    "postcss": "8.5.6",
+    "prettier": "3.6.2",
+    "prisma": "7.10.0",
+    "tsx": "4.20.5",
+    "typescript": "5.9.2"
+  },
+  "overrides": {
+    "@typescript-eslint/visitor-keys": "8.70.0"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  },
+  "allowScripts": {
+    "@prisma/engines@7.10.0": true,
+    "prisma@7.10.0": true,
+    "@tailwindcss/oxide@4.1.13": true,
+    "unrs-resolver@1.12.2": true,
+    "esbuild@0.25.12": true
+  }
+}

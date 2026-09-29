@@ -1,0 +1,6 @@
+.git
+.github
+README.md
+DEPLOY.md
+docs
+prisma/migrations
