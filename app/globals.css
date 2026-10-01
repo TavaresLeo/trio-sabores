@@ -48,7 +48,7 @@ a{transition:color .18s ease}
 .product-card-image-link{display:block;padding:8px 8px 0}
 .product-image-wrap{aspect-ratio:1.55/1;border-radius:7px;background:#f0e9dd}
 .product-image{display:block;width:100%;height:100%;object-fit:cover}
-.product-image-mini-pizzas{width:190%;max-width:none;transform:translateX(-52%);object-position:100% 32%}
+.product-image-mini-pizzas{width:100%;max-width:none;object-position:100% 32%}
 .product-image-empadao-de-frango{object-position:78% 65%}
 .product-image-coxinha-de-frango{object-position:81% 47%}
 .product-image-cappuccino{object-position:80% 20%}
@@ -260,20 +260,21 @@ a{transition:color .18s ease}
 @media(min-width:701px){.home-categories{display:none}}
 @media(max-width:700px){
   body{padding-bottom:62px}
-  .site-header{height:44px}
+  .site-header{height:54px}
   .site-header-inner{padding-inline:12px}
   .site-header-inner{display:grid;grid-template-columns:34px 1fr auto;gap:3px}
-  .site-mobile-menu-trigger{display:grid;width:32px;height:32px;place-items:center}
-  .brand-image-link{width:auto;height:39px;justify-content:center}
-  .brand-image{width:35px;height:35px}
-  .site-wordmark{font-size:14px}
-  .site-header .icon-button{height:32px;width:32px}
+  .site-mobile-menu-trigger{display:grid;width:36px;height:36px;place-items:center}
+  .brand-image-link{width:auto;height:44px;justify-content:center}
+  .brand-image{width:40px;height:40px}
+  .site-wordmark{font-size:16px}
+  .site-header .icon-button{height:36px;width:36px}
+  .mobile-menu a{font-size:15px}
   .mobile-bottom-nav{position:fixed;z-index:60;right:0;bottom:0;left:0;display:grid;height:60px;grid-template-columns:repeat(4,1fr);border-top:1px solid #e4d9c8;background:#fff;padding-bottom:env(safe-area-inset-bottom);box-shadow:0 -2px 9px #3c11120d}
   .mobile-bottom-nav a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;color:#73635c;font-size:9px}
   .mobile-bottom-nav a.active{color:#780f26}
   .mobile-nav-icon{position:relative;display:block;height:21px}
   .mobile-cart-badge{position:absolute;top:-5px;right:-8px;display:grid;min-width:15px;height:15px;place-items:center;border-radius:9px;background:#8a162e;color:#fff;font-size:8px}
-  .hero-real img{width:100%;height:auto;max-height:72svh;min-height:0;object-fit:contain;object-position:center;content:normal}
+  .hero-real img{width:100%;height:auto;max-height:30svh;min-height:0;object-fit:cover;object-position:center;content:normal}
   .home-benefits{grid-template-columns:repeat(4,minmax(0,1fr));gap:2px;padding:11px 7px 8px}
   .home-benefits span{display:flex;flex-direction:column;gap:4px;padding:3px 1px;text-align:center;font-size:7px;line-height:1.25}
   .home-benefits svg{width:17px;height:17px}
@@ -287,7 +288,7 @@ a{transition:color .18s ease}
   .home-category-card img{width:100%;height:100%;object-fit:cover}
   .home-category-card img[src*="banner-horizontal"]{object-position:68% 62%}
   .home-category-card img[src*="banner-vertical"]{object-position:78% 58%}
-  .home-category-mini-pizzas img,.home-category-salgados img,.home-category-empadoes img,.home-category-cafes img{width:190%;max-width:none;transform:translateX(-52%);object-position:100% 32%}
+  .home-category-mini-pizzas img,.home-category-salgados img,.home-category-empadoes img,.home-category-cafes img{width:100%;max-width:none;object-position:100% 32%}
   .home-category-card span{position:absolute;right:0;bottom:0;left:0;padding:5px 7px;background:linear-gradient(transparent,#25090bd9);color:#fff;font-size:9px;font-weight:700}
   .home-featured{padding:13px 12px 28px}
   .featured-heading{margin-bottom:11px}
