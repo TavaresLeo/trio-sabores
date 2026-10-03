@@ -12,7 +12,7 @@ export function SiteHeader() {
   useEffect(() => {
     void useCart.persist.rehydrate();
   }, []);
-  const links = [['Início','/'],['Produtos','/cardapio'],['Minha Conta','/conta'],['Sobre Nós','/sobre'],['Entrega','/contato'],['Fale Conosco','/contato']];
+  const links = [['Início','/'],['Produtos','/cardapio'],['Minha Conta','/conta'],['Sobre Nós','/sobre'],['Entrega','/entrega'],['Fale Conosco','/contato']];
   if (pathname.startsWith('/admin')) return null;
   return <header className="site-header sticky top-0 z-50 bg-wine text-cream">
     <div className="site-header-inner mx-auto flex max-w-7xl items-center justify-between px-4">

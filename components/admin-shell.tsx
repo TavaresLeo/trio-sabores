@@ -9,8 +9,8 @@ const links = [
   { href: '/admin', label: 'Dashboard', Icon: LayoutDashboard },
   { href: '/admin/pedidos', label: 'Pedidos', Icon: ClipboardList },
   { href: '/admin/produtos', label: 'Produtos', Icon: CookingPot },
-  { href: '/admin/configuracoes', label: 'Categorias', Icon: ChartNoAxesCombined },
-  { href: '/admin/configuracoes', label: 'Clientes', Icon: Users },
+  { href: '/admin/categorias', label: 'Categorias', Icon: ChartNoAxesCombined },
+  { href: '/admin/clientes', label: 'Clientes', Icon: Users },
   { href: '/admin/configuracoes', label: 'Configurações', Icon: Settings },
 ];
 
@@ -45,7 +45,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
         </Link>
         <nav aria-label="Menu administrativo">
           {links.map(({ href, label, Icon }) => (
-            <Link key={label} href={href} className={`admin-sidebar-link ${pathname === href && (label !== 'Clientes' && label !== 'Categorias') ? 'active' : ''}`}>
+            <Link key={href} href={href} className={`admin-sidebar-link ${pathname === href ? 'active' : ''}`}>
               <Icon size={17} /><span>{label}</span>
             </Link>
           ))}
