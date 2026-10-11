@@ -62,8 +62,8 @@ export default function Checkout() {
   const update = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
   const continueToAddress = () => {
     const phoneDigits = form.phone.replace(/\D/g, '').length;
-    if (!form.name.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim()) || phoneDigits < 10 || phoneDigits > 15) {
-      setError('Preencha nome, telefone e e-mail válidos para continuar.');
+    if (!form.name.trim() || phoneDigits < 10 || phoneDigits > 15) {
+      setError('Preencha nome e telefone válidos para continuar.');
       return;
     }
     setError('');
@@ -142,7 +142,7 @@ export default function Checkout() {
             <div className="checkout-fields">
               <Field label="Nome completo" value={form.name} onChange={(value) => update('name', value)} required />
               <Field label="Telefone / WhatsApp" value={form.phone} onChange={(value) => update('phone', value)} required />
-              <Field label="E-mail" type="email" value={form.email} onChange={(value) => update('email', value)} required />
+              <Field label="E-mail" type="email" value={form.email} onChange={(value) => update('email', value)} />
             </div>
             <p className="checkout-helper">Já tem cadastro? <Link className="text-wine underline" href="/conta">Entre na sua conta</Link> para preencher seus dados salvos.</p>
             {error && <p role="alert" className="checkout-error">{error}</p>}
@@ -176,7 +176,18 @@ export default function Checkout() {
                 </button>
               ))}
             </div>
-            {method === 'CASH_ON_DELIVERY' && <div className="field checkout-change-field"><label>Precisa de troco para quanto?</label><input value={form.cashChange} onChange={(event) => update('cashChange', event.target.value)} placeholder="R$ 100,00" /></div>}
+            {method === 'PIX' && (
+              <div className="pix-info">
+                <p>Envie o PIX para: <strong>21994403746</strong></p>
+                <p>Após a confirmação do pagamento, seu pedido será processado.</p>
+              </div>
+            )}
+            {method === 'CASH_ON_DELIVERY' && (
+              <div className="field checkout-change-field">
+                <label>Precisa de troco para quanto?</label>
+                <input value={form.cashChange} onChange={(event) => update('cashChange', event.target.value)} placeholder="R$ 100,00" />
+              </div>
+            )}
             <div className="field checkout-notes"><label>Observações do pedido</label><textarea rows={3} value={form.notes} onChange={(event) => update('notes', event.target.value)} maxLength={500} /></div>
             <div className="checkout-actions"><button className="btn-secondary" onClick={() => setStep(2)}>Voltar</button><button className="btn-primary" onClick={() => setStep(4)}>Revisar pedido</button></div>
           </>}

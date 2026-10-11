@@ -20,7 +20,7 @@ const legacyProductImages: Record<string, string> = {
   '/products/pudim.svg': '/images/pudim-leite-condensado.jpeg',
   '/products/bolo-fuba.svg': '/images/bolo-de-fuba-com-laranja.jpeg',
   '/products/mini-pizza.svg': '/images/banner-vertical.jpeg',
-  '/products/empadao.svg': '/images/banner-vertical.jpeg',
+  '/products/empadao.svg': '/products/empadao.svg',
   '/products/coxinha.svg': '/images/banner-vertical.jpeg',
   '/products/bolo-chocolate.svg': '/images/bolo-de-laranja-com-chocolate.jpeg',
   '/products/cafe.svg': '/images/banner-vertical.jpeg',
