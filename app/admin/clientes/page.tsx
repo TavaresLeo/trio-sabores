@@ -3,8 +3,10 @@ import { ShoppingBag, UserCheck, Users, Wallet } from 'lucide-react';
 import { verifyAdmin } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { formatBRL } from '@/lib/money';
+import { CustomerDeleteButton } from './customer-delete-button';
 
 type Customer = {
+  id: string | null;
   email: string;
   name: string;
   phone: string | null;
@@ -22,7 +24,7 @@ export default async function AdminClientes() {
   const [users, totals, contacts] = await Promise.all([
     db.user.findMany({
       where: { role: 'USER' },
-      select: { name: true, email: true, phone: true, createdAt: true },
+      select: { id: true, name: true, email: true, phone: true, createdAt: true },
     }),
     db.order.groupBy({
       by: ['customerEmail'],
@@ -44,6 +46,7 @@ export default async function AdminClientes() {
     const email = normalize(total.customerEmail);
     const contact = contactByEmail.get(email);
     byEmail.set(email, {
+      id: null,
       email,
       name: contact?.customerName || total.customerEmail,
       phone: contact?.customerPhone || null,
@@ -59,11 +62,13 @@ export default async function AdminClientes() {
     const existing = byEmail.get(email);
     if (existing) {
       existing.registered = true;
+      existing.id = user.id;
       existing.name = user.name || existing.name;
       existing.phone = existing.phone ?? user.phone;
       continue;
     }
     byEmail.set(email, {
+      id: user.id,
       email,
       name: user.name,
       phone: user.phone,
@@ -102,7 +107,7 @@ export default async function AdminClientes() {
           <div className="admin-table-wrap">
             <table className="admin-orders-table">
               <thead>
-                <tr><th>Cliente</th><th>E-mail</th><th>Telefone</th><th>Pedidos</th><th>Total gasto</th><th>Último pedido</th></tr>
+                <tr><th>Cliente</th><th>E-mail</th><th>Telefone</th><th>Pedidos</th><th>Total gasto</th><th>Último pedido</th><th>Ações</th></tr>
               </thead>
               <tbody>
                 {customers.map((customer) => (
@@ -116,6 +121,7 @@ export default async function AdminClientes() {
                     <td>{customer.orders}</td>
                     <td>{formatBRL(customer.totalCents)}</td>
                     <td>{customer.lastOrderAt.getFullYear() < 2000 ? '—' : customer.lastOrderAt.toLocaleDateString('pt-BR')}</td>
+                    <td>{customer.registered && customer.id && <CustomerDeleteButton customerId={customer.id} customerName={customer.name} />}</td>
                   </tr>
                 ))}
               </tbody>

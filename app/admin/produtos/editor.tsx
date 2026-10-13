@@ -9,6 +9,7 @@ export type Availability = 'AVAILABLE' | 'SOLD_OUT' | 'PREORDER';
 export type EditableProduct = {
   id: string;
   name: string;
+  description: string;
   priceCents: number;
   categoryId: string;
   availability: Availability;
@@ -38,6 +39,7 @@ const actionClass =
 export function ProductRow({ product, categories }: { product: EditableProduct; categories: { id: string; name: string }[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [description, setDescription] = useState(product.description);
   const [price, setPrice] = useState(() => centsToInput(product.priceCents));
   const [categoryId, setCategoryId] = useState(product.categoryId);
   const [availability, setAvailability] = useState<Availability>(product.availability);
@@ -45,6 +47,7 @@ export function ProductRow({ product, categories }: { product: EditableProduct; 
   const [saving, setSaving] = useState(false);
 
   const reset = () => {
+    setDescription(product.description);
     setPrice(centsToInput(product.priceCents));
     setCategoryId(product.categoryId);
     setAvailability(product.availability);
@@ -68,7 +71,7 @@ export function ProductRow({ product, categories }: { product: EditableProduct; 
       const response = await fetch(`/api/admin/products/${product.id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ priceCents, categoryId, availability }),
+        body: JSON.stringify({ description, priceCents, categoryId, availability }),
       });
       const data = await response.json().catch(() => ({}));
       if (!response.ok) {
@@ -105,6 +108,18 @@ export function ProductRow({ product, categories }: { product: EditableProduct; 
         <tr className="border-b bg-[#fffdf9]">
           <td colSpan={5} className="p-3">
             <div className="grid gap-3 md:grid-cols-3">
+              <div className="field md:col-span-3">
+                <label htmlFor={`description-${product.id}`}>Descrição</label>
+                <textarea
+                  id={`description-${product.id}`}
+                  value={description}
+                  onChange={(event) => setDescription(event.target.value)}
+                  rows={3}
+                  minLength={5}
+                  maxLength={500}
+                  required
+                />
+              </div>
               <div className="field">
                 <label htmlFor={`price-${product.id}`}>Preço</label>
                 <input

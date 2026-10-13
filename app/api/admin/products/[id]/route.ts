@@ -5,6 +5,7 @@ import { verifyAdmin } from '@/lib/auth';
 
 const schema = z.object({
   name: z.string().min(2).max(120).optional(),
+  description: z.string().trim().min(5).max(500).optional(),
   priceCents: z.number().int().positive().optional(),
   categoryId: z.string().min(1).optional(),
   availability: z.enum(['AVAILABLE', 'SOLD_OUT', 'PREORDER']).optional(),

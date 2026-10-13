@@ -3,6 +3,7 @@ import { AdminDeliveryReview } from '@/components/admin-delivery-review';
 import { verifyAdmin } from '@/lib/auth';
 import { db } from '@/lib/db';
 import { formatBRL } from '@/lib/money';
+import { OrderDeleteButton } from './order-delete-button';
 
 export default async function AdminPedidos() {
   if (!await verifyAdmin()) redirect('/admin/login');
@@ -38,6 +39,9 @@ export default async function AdminPedidos() {
               {order.status === 'PENDING' && order.fulfillmentType === 'DELIVERY' && (
                 <AdminDeliveryReview orderId={order.id} estimatedDistanceKm={order.distanceKm === null ? null : Number(order.distanceKm)} />
               )}
+              <div className="mt-3 border-t border-[#eadfce] pt-3">
+                <OrderDeleteButton orderId={order.id} orderNumber={order.publicNumber} />
+              </div>
             </article>
           ))}
           {orders.length === 0 && <p className="form-card text-sm text-brown/60">Ainda não há pedidos.</p>}
