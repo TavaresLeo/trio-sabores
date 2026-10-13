@@ -5,7 +5,7 @@ import { ProductCard } from '@/components/product-card';
 import { Heart, PackageCheck, ShieldCheck, Sparkles } from 'lucide-react';
 
 export default async function Home() {
-  const products = await db.product.findMany({ where: { featured: true, availability: { not: 'SOLD_OUT' } }, include: { category: true }, orderBy: { sortOrder: 'asc' }, take: 4 });
+  const products = await db.product.findMany({ where: { featured: true, availability: { not: 'SOLD_OUT' } }, include: { category: true }, orderBy: { sortOrder: 'asc' }, take: 8 });
   const categories = await db.category.findMany({ where: { active: true }, orderBy: { sortOrder: 'asc' }, take: 4 });
   const categoryImages: Record<string, string> = {
     'bolos-caseiros': '/images/bolo-de-laranja-caseiro.jpeg',
