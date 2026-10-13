@@ -1,19 +1,8 @@
 'use client';
-import { useState } from 'react';
 import { MapPin, Phone, Clock } from 'lucide-react';
+import { whatsappDisplayNumber, whatsappLink } from '@/lib/whatsapp';
 
 export default function Entrega() {
-  const [copied, setCopied] = useState(false);
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText('(21) 99515-1997');
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Falha ao copiar: ', err);
-    }
-  };
-
   return (
     <main className="mx-auto max-w-6xl px-5 py-16">
       <h1 className="font-serif text-5xl text-wine text-center">Nossa Entrega</h1>
@@ -44,9 +33,9 @@ export default function Entrega() {
               <Phone className="text-gold" />
               <div>
                 <b>WhatsApp</b>
-                <p className="text-sm text-brown/70" onClick={handleCopy}>
-                  {copied ? '(21) 99515-1997 ✓' : '(21) 99515-1997'}
-                </p>
+                <a className="text-sm text-brown/70 underline" href={whatsappLink('Olá! Gostaria de consultar sobre uma entrega.')} target="_blank" rel="noreferrer">
+                  {whatsappDisplayNumber}
+                </a>
               </div>
             </div>
           </div>

@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { Check, Circle } from 'lucide-react';
+import { whatsappLink } from '@/lib/whatsapp';
 
 export default async function Pedidos({
   searchParams,
@@ -22,7 +23,7 @@ export default async function Pedidos({
           <div className="tracking-step"><span><Circle size={15} /></span><div><b>Saiu para entrega</b><small>Seu pedido está a caminho</small></div></div>
           <div className="tracking-step"><span><Circle size={15} /></span><div><b>Entregue</b><small>Bom apetite!</small></div></div>
         </div>
-        <a className="btn-primary order-whatsapp" href={`https://wa.me/${process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '5521999999999'}?text=${encodeURIComponent(`Olá! Gostaria de acompanhar meu pedido ${numero || ''}.`)}`}>
+        <a className="btn-primary order-whatsapp" href={whatsappLink(`Olá! Gostaria de acompanhar meu pedido ${numero || ''}.`)}>
           Acompanhar pedido pelo WhatsApp
         </a>
         <Link className="order-back-link" href="/">Voltar para a loja</Link>

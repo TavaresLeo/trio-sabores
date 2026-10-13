@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { Phone, Mail } from 'lucide-react';
+import { whatsappDisplayNumber, whatsappLink } from '@/lib/whatsapp';
 
 export default function Contato() {
   const [sent, setSent] = useState(false);
@@ -18,7 +19,9 @@ export default function Contato() {
               <Phone className="text-gold" />
               <div>
                 <b>WhatsApp</b>
-                <p className="text-sm text-brown/70">(21) 99515-1997</p>
+                <a className="text-sm text-brown/70 underline" href={whatsappLink('Olá! Gostaria de falar com a Trio Sabores.')} target="_blank" rel="noreferrer">
+                  {whatsappDisplayNumber}
+                </a>
               </div>
             </div>
             <div className="flex gap-3">
