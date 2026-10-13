@@ -15,11 +15,21 @@ export async function POST(req: Request) {
     );
   }
   const parsed = orderSchema.safeParse(input);
-  if (!parsed.success)
+  if (!parsed.success) {
+    const details = parsed.error.issues.map((issue) => ({
+      field: issue.path.map(String).join("."),
+      message: issue.message,
+    }));
     return NextResponse.json(
-      { error: "Confira os dados do pedido." },
+      {
+        error: details.length
+          ? `Confira os dados do pedido: ${details.map((issue) => `${issue.field}: ${issue.message}`).join(" ")}`
+          : "Confira os dados do pedido.",
+        details,
+      },
       { status: 400 },
     );
+  }
   const payload = parsed.data;
   const customer = await verifyUser();
   const ids = [...new Set(payload.items.map((i) => i.productId))];

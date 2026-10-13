@@ -1,5 +1,35 @@
 import { z } from 'zod';
 
+const brazilianStateCodes: Record<string, string> = {
+  acre: 'AC',
+  alagoas: 'AL',
+  amapá: 'AP',
+  amazonas: 'AM',
+  bahia: 'BA',
+  ceará: 'CE',
+  'distrito federal': 'DF',
+  'espírito santo': 'ES',
+  goiás: 'GO',
+  maranhão: 'MA',
+  'mato grosso': 'MT',
+  'mato grosso do sul': 'MS',
+  'minas gerais': 'MG',
+  pará: 'PA',
+  paraíba: 'PB',
+  paraná: 'PR',
+  pernambuco: 'PE',
+  piauí: 'PI',
+  'rio de janeiro': 'RJ',
+  'rio grande do norte': 'RN',
+  'rio grande do sul': 'RS',
+  rondônia: 'RO',
+  roraima: 'RR',
+  'santa catarina': 'SC',
+  'são paulo': 'SP',
+  sergipe: 'SE',
+  tocantins: 'TO',
+};
+
 const addressSchema = z.object({
   cep: z.string().trim().max(20).transform((value) => value.replace(/\D/g, '')).refine((value) => value.length === 8, 'Informe um CEP válido.'),
   street: z.string().trim().min(2).max(120),
@@ -7,7 +37,15 @@ const addressSchema = z.object({
   complement: z.string().trim().max(120).optional(),
   neighborhood: z.string().trim().min(2).max(100),
   city: z.string().trim().min(2).max(100),
-  state: z.string().trim().regex(/^[a-zA-Z]{2}$/).transform((value) => value.toUpperCase()),
+  state: z.string().trim()
+    .transform((value) => {
+      const normalized = value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      const stateName = Object.keys(brazilianStateCodes).find(
+        (name) => name.normalize('NFD').replace(/[\u0300-\u036f]/g, '') === normalized,
+      );
+      return stateName ? brazilianStateCodes[stateName] : value.toUpperCase();
+    })
+    .refine((value) => /^[A-Z]{2}$/.test(value), 'Informe a sigla de dois caracteres ou o nome de um estado brasileiro.'),
 });
 
 export const orderSchema = z.object({

@@ -66,6 +66,11 @@ export default function Checkout() {
       setError('Preencha nome e telefone válidos para continuar.');
       return;
     }
+    const email = form.email.trim();
+    if (email.length > 150 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setError('Informe um e-mail válido para continuar.');
+      return;
+    }
     setError('');
     setStep(2);
   };
@@ -142,7 +147,7 @@ export default function Checkout() {
             <div className="checkout-fields">
               <Field label="Nome completo" value={form.name} onChange={(value) => update('name', value)} required />
               <Field label="Telefone / WhatsApp" value={form.phone} onChange={(value) => update('phone', value)} required />
-              <Field label="E-mail" type="email" value={form.email} onChange={(value) => update('email', value)} />
+              <Field label="E-mail" type="email" value={form.email} onChange={(value) => update('email', value)} required />
             </div>
             <p className="checkout-helper">Já tem cadastro? <Link className="text-wine underline" href="/conta">Entre na sua conta</Link> para preencher seus dados salvos.</p>
             {error && <p role="alert" className="checkout-error">{error}</p>}
@@ -158,7 +163,7 @@ export default function Checkout() {
               <Field label="Complemento" value={form.complement} onChange={(value) => update('complement', value)} />
               <Field label="Bairro" value={form.neighborhood} onChange={(value) => update('neighborhood', value)} required />
               <Field label="Cidade" value={form.city} onChange={(value) => update('city', value)} required />
-              <Field label="Estado" value={form.state} onChange={(value) => update('state', value)} required />
+              <Field label="Estado (UF ou nome completo)" value={form.state} onChange={(value) => update('state', value)} required />
               <Field label="Distância estimada (km)" value={form.distanceKm} onChange={(value) => update('distanceKm', value)} required />
             </div>
             <p className="checkout-helper">A taxa é uma estimativa e será conferida pela equipe antes da confirmação do pedido.</p>
