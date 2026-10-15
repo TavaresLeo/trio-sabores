@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Check } from 'lucide-react';
 import { useCart } from '@/components/shop-state';
-import { formatBRL } from '@/lib/money';
+import { formatBRL, parseBRL } from '@/lib/money';
 import { productImageFor } from '@/lib/product-image';
 
 const steps = ['Identificação', 'Endereço', 'Pagamento', 'Revisão'];
@@ -17,6 +18,8 @@ export default function Checkout() {
   const [step, setStep] = useState(1);
   const [method, setMethod] = useState<'PIX' | 'CARD' | 'CASH_ON_DELIVERY'>('PIX');
   const [loading, setLoading] = useState(false);
+  const [cepLoading, setCepLoading] = useState(false);
+  const [deliveryQuote, setDeliveryQuote] = useState<{ available: boolean; feeCents: number; message: string } | null>(null);
   const [error, setError] = useState('');
   const [form, setForm] = useState({
     name: '', email: '', phone: '', cep: '', street: '', number: '',
@@ -55,11 +58,71 @@ export default function Checkout() {
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    const dist = Number(form.distanceKm);
+    if (!Number.isFinite(dist) || dist < 0 || dist > 12) {
+      Promise.resolve().then(() => {
+        if (active) setDeliveryQuote(null);
+      });
+      return () => { active = false; };
+    }
+    fetch('/api/delivery/quote', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ distanceKm: dist }),
+    })
+      .then(async (res) => {
+        const data = await res.json();
+        if (active) {
+          if (res.ok && data.available) {
+            setDeliveryQuote(data);
+          } else {
+            setDeliveryQuote({ available: false, feeCents: 0, message: data.message || data.error });
+          }
+        }
+      })
+      .catch(() => {
+        if (active) setDeliveryQuote(null);
+      });
+    return () => { active = false; };
+  }, [form.distanceKm]);
+
   if (items.length === 0) {
     return <main className="checkout-empty"><div className="form-card"><h1>Seu carrinho está vazio.</h1><Link href="/cardapio" className="btn-primary">Voltar ao cardápio</Link></div></main>;
   }
 
   const update = (key: keyof typeof form, value: string) => setForm((current) => ({ ...current, [key]: value }));
+
+  const handleCepChange = async (value: string) => {
+    update('cep', value);
+    const digits = value.replace(/\D/g, '');
+    if (digits.length === 8) {
+      setCepLoading(true);
+      try {
+        const res = await fetch(`/api/cep?cep=${digits}`);
+        if (res.ok) {
+          const data = await res.json();
+          setForm((prev) => ({
+            ...prev,
+            cep: value,
+            street: data.street || prev.street,
+            neighborhood: data.neighborhood || prev.neighborhood,
+            city: data.city || prev.city,
+            state: data.state || prev.state,
+          }));
+        }
+      } catch {
+        // silently fallback
+      } finally {
+        setCepLoading(false);
+      }
+    }
+  };
+
+  const currentDeliveryFee = deliveryQuote?.available ? deliveryQuote.feeCents : 0;
+  const currentTotal = subtotal() + currentDeliveryFee;
+
   const continueToAddress = () => {
     const phoneDigits = form.phone.replace(/\D/g, '').length;
     if (!form.name.trim() || phoneDigits < 10 || phoneDigits > 15) {
@@ -74,6 +137,7 @@ export default function Checkout() {
     setError('');
     setStep(2);
   };
+
   const continueToPayment = () => {
     const missingAddressField = requiredAddressFields.some((key) => !form[key].trim());
     const distance = Number(form.distanceKm);
@@ -84,10 +148,24 @@ export default function Checkout() {
     setError('');
     setStep(3);
   };
+
+  const continueToReview = () => {
+    if (method === 'CASH_ON_DELIVERY' && form.cashChange.trim()) {
+      const changeCents = parseBRL(form.cashChange);
+      if (changeCents < currentTotal) {
+        setError(`O valor para troco deve ser maior ou igual ao total do pedido (${formatBRL(currentTotal)}).`);
+        return;
+      }
+    }
+    setError('');
+    setStep(4);
+  };
+
   const submit = async () => {
     setLoading(true);
     setError('');
     try {
+      const changeCents = form.cashChange ? parseBRL(form.cashChange) : undefined;
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -102,7 +180,7 @@ export default function Checkout() {
           },
           distanceKm: Number(form.distanceKm),
           paymentMethod: method,
-          cashChangeForCents: form.cashChange ? Number(form.cashChange.replace(/\D/g, '')) : undefined,
+          cashChangeForCents: changeCents,
           notes: form.notes,
           items: items.map((item) => ({ productId: item.id, quantity: item.quantity })),
         }),
@@ -114,7 +192,8 @@ export default function Checkout() {
       }
       clear();
       const review = data.order.status === 'PENDING' ? '&revisao=entrega' : '';
-      router.push(`/pedidos?numero=${encodeURIComponent(data.order.publicNumber)}${review}`);
+      const pix = data.payment?.pixCode ? `&pix=${encodeURIComponent(data.payment.pixCode)}` : '';
+      router.push(`/pedidos?numero=${encodeURIComponent(data.order.publicNumber)}${review}${pix}`);
     } catch {
       setError('Não foi possível conectar ao servidor. Tente novamente.');
     } finally {
@@ -157,16 +236,23 @@ export default function Checkout() {
             <h2>Endereço de Entrega</h2>
             <p className="checkout-helper">Informe onde deseja receber seu pedido.</p>
             <div className="checkout-fields">
-              <Field label="CEP" value={form.cep} onChange={(value) => update('cep', value)} required />
+              <div className="field">
+                <label>CEP{cepLoading && <span className="text-xs text-wine ml-2 font-normal">(buscando endereço...)</span>}<span className="required-mark"> *</span></label>
+                <input value={form.cep} onChange={(e) => handleCepChange(e.target.value)} required maxLength={9} placeholder="00000-000" />
+              </div>
               <Field label="Rua" value={form.street} onChange={(value) => update('street', value)} required />
               <Field label="Número" value={form.number} onChange={(value) => update('number', value)} required />
               <Field label="Complemento" value={form.complement} onChange={(value) => update('complement', value)} />
               <Field label="Bairro" value={form.neighborhood} onChange={(value) => update('neighborhood', value)} required />
               <Field label="Cidade" value={form.city} onChange={(value) => update('city', value)} required />
-              <Field label="Estado (UF ou nome completo)" value={form.state} onChange={(value) => update('state', value)} required />
-              <Field label="Distância estimada (km)" value={form.distanceKm} onChange={(value) => update('distanceKm', value)} required />
+              <Field label="Estado (UF)" value={form.state} onChange={(value) => update('state', value)} required />
+              <div className="field">
+                <label>Distância estimada (km)<span className="required-mark"> *</span></label>
+                <input type="number" step="0.5" min="0" max="12" value={form.distanceKm} onChange={(e) => update('distanceKm', e.target.value)} required />
+                {deliveryQuote && <small className={deliveryQuote.available ? "text-green-700" : "text-red"}>{deliveryQuote.message}</small>}
+              </div>
             </div>
-            <p className="checkout-helper">A taxa é uma estimativa e será conferida pela equipe antes da confirmação do pedido.</p>
+            <p className="checkout-helper">A taxa de entrega é baseada na distância até nossa loja em Campo Grande e será conferida antes do envio.</p>
             {error && <p role="alert" className="checkout-error">{error}</p>}
             <div className="checkout-actions"><button className="btn-secondary" onClick={() => setStep(1)}>Voltar</button><button className="btn-primary" onClick={continueToPayment}>Continuar para pagamento</button></div>
           </>}
@@ -190,11 +276,13 @@ export default function Checkout() {
             {method === 'CASH_ON_DELIVERY' && (
               <div className="field checkout-change-field">
                 <label>Precisa de troco para quanto?</label>
-                <input value={form.cashChange} onChange={(event) => update('cashChange', event.target.value)} placeholder="R$ 100,00" />
+                <input value={form.cashChange} onChange={(event) => update('cashChange', event.target.value)} placeholder="Ex: R$ 50,00 ou 100" />
+                <small className="text-brown/60">Informe o valor total da nota que você usará para pagar.</small>
               </div>
             )}
             <div className="field checkout-notes"><label>Observações do pedido</label><textarea rows={3} value={form.notes} onChange={(event) => update('notes', event.target.value)} maxLength={500} /></div>
-            <div className="checkout-actions"><button className="btn-secondary" onClick={() => setStep(2)}>Voltar</button><button className="btn-primary" onClick={() => setStep(4)}>Revisar pedido</button></div>
+            {error && <p role="alert" className="checkout-error">{error}</p>}
+            <div className="checkout-actions"><button className="btn-secondary" onClick={() => setStep(2)}>Voltar</button><button className="btn-primary" onClick={continueToReview}>Revisar pedido</button></div>
           </>}
           {step === 4 && <>
             <h2>Revise seu Pedido</h2>
@@ -203,7 +291,8 @@ export default function Checkout() {
               <b>{form.name}</b><span>{form.phone} · {form.email}</span>
               <span>{form.street}, {form.number} · {form.neighborhood}</span>
               <span>{form.city}/{form.state} · {form.cep}</span>
-              <span>Pagamento: {method === 'CASH_ON_DELIVERY' ? 'Dinheiro' : method}</span>
+              <span>Pagamento: {method === 'CASH_ON_DELIVERY' ? `Dinheiro ${form.cashChange ? `(Troco para ${formatBRL(parseBRL(form.cashChange))})` : '(Sem troco)'}` : method}</span>
+              {deliveryQuote?.available && <span>Taxa estimada de entrega: {formatBRL(deliveryQuote.feeCents)} ({form.distanceKm} km)</span>}
             </div>
             {error && <p role="alert" className="checkout-error">{error}</p>}
             <div className="checkout-actions"><button className="btn-secondary" onClick={() => setStep(3)}>Voltar</button><button disabled={loading} className="btn-primary" onClick={submit}>{loading ? 'Finalizando...' : 'Finalizar Pedido'}</button></div>
@@ -213,14 +302,17 @@ export default function Checkout() {
           <h2>Resumo do Pedido</h2>
           {items.map((item) => (
             <div className="checkout-summary-item" key={item.id}>
-              <img src={productImageFor(item)} alt="" />
+              <Image src={productImageFor(item)} alt={item.name} width={50} height={50} className="object-cover" />
               <div><b>{item.name}</b><span>{item.quantity} × {formatBRL(item.priceCents)}</span></div>
               <strong>{formatBRL(item.quantity * item.priceCents)}</strong>
             </div>
           ))}
           <div className="checkout-summary-line"><span>Subtotal</span><b>{formatBRL(subtotal())}</b></div>
-          <div className="checkout-summary-line"><span>Entrega</span><span>A calcular</span></div>
-          <div className="checkout-summary-total"><span>Total</span><b>{formatBRL(subtotal())}</b></div>
+          <div className="checkout-summary-line">
+            <span>Entrega</span>
+            <b>{deliveryQuote ? (deliveryQuote.available ? formatBRL(deliveryQuote.feeCents) : 'Indisponível') : 'A calcular'}</b>
+          </div>
+          <div className="checkout-summary-total"><span>Total</span><b>{formatBRL(currentTotal)}</b></div>
           <p>🔒 Seus dados são protegidos e usados apenas para o pedido.</p>
         </aside>
       </section>

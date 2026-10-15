@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ChartNoAxesCombined, ClipboardList, CookingPot, LayoutDashboard, LogOut, Settings, Users } from 'lucide-react';
@@ -40,7 +41,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     <div className="admin-shell">
       <aside className="admin-sidebar">
         <Link href="/admin" className="admin-brand">
-          <img src="/images/logomarca.jpeg" alt="" />
+          <Image src="/images/logomarca.jpeg" alt="Trio Sabores" width={40} height={40} className="rounded" />
           <span>Trio <b>Sabores</b><small>PAINEL ADMINISTRATIVO</small></span>
         </Link>
         <nav aria-label="Menu administrativo">

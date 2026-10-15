@@ -148,7 +148,7 @@ export async function POST(req: Request) {
     payment: {
       mode: "demo",
       pixCode:
-        payload.paymentMethod === "PIX" && order.status === "CONFIRMED"
+        payload.paymentMethod === "PIX"
           ? `00020126580014BR.GOV.BCB.PIX0136trio-sabores-demo-${order.id}520400005303986540${(totalCents / 100).toFixed(2)}`
           : null,
     },

@@ -7,6 +7,7 @@ const schema = z.object({
   name: z.string().min(2).max(120).optional(),
   description: z.string().trim().min(5).max(500).optional(),
   priceCents: z.number().int().positive().optional(),
+  imageUrl: z.string().min(1).optional(),
   categoryId: z.string().min(1).optional(),
   availability: z.enum(['AVAILABLE', 'SOLD_OUT', 'PREORDER']).optional(),
   featured: z.boolean().optional(),
@@ -32,9 +33,21 @@ export async function DELETE(_req: Request, { params }: { params: Promise<{ id: 
   if (!await verifyAdmin()) return NextResponse.json({ error: 'Não autorizado.' }, { status: 401 });
   const { id } = await params;
   try {
+    const ordersCount = await db.orderItem.count({ where: { productId: id } });
+    if (ordersCount > 0) {
+      await db.product.update({
+        where: { id },
+        data: { availability: 'SOLD_OUT' },
+      });
+      return NextResponse.json({
+        ok: true,
+        archived: true,
+        message: 'Produto arquivado como esgotado para preservar o histórico de pedidos.',
+      });
+    }
     await db.product.delete({ where: { id } });
     return NextResponse.json({ ok: true });
   } catch {
-    return NextResponse.json({ error: 'Não foi possível excluir.' }, { status: 400 });
+    return NextResponse.json({ error: 'Não foi possível excluir o produto.' }, { status: 400 });
   }
 }

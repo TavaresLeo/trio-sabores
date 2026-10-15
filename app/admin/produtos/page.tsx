@@ -40,6 +40,8 @@ export default async function AdminProdutos() {
                   product={{
                     id: product.id,
                     name: product.name,
+                    slug: product.slug,
+                    imageUrl: product.imageUrl,
                     description: product.description,
                     priceCents: product.priceCents,
                     categoryId: product.categoryId,

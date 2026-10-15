@@ -16,15 +16,33 @@ export const useCart = create<CartState>()(persist((set, get) => ({
 }), {name:'trio-sabores-cart',skipHydration:true}));
 
 export function AddToCart({product, quantity=1, showQuantity=false}: {product: ShopProduct; quantity?: number; showQuantity?: boolean}) {
-  const add=useCart(s=>s.add);
-  const [amount,setAmount]=useState(quantity);
-  const soldOut=product.availability==='SOLD_OUT';
-  return <div className="add-to-cart">
-    {showQuantity&&<div className="quantity-stepper" aria-label={`Quantidade de ${product.name}`}>
-      <button type="button" aria-label="Diminuir quantidade" onClick={()=>setAmount(Math.max(1,amount-1))}>−</button>
-      <span>{amount}</span>
-      <button type="button" aria-label="Aumentar quantidade" onClick={()=>setAmount(Math.min(99,amount+1))}>+</button>
-    </div>}
-    <button className="btn-primary w-full" disabled={soldOut} onClick={()=>{add(product,showQuantity?amount:quantity); useCart.getState().open();}}>{soldOut?'Esgotado':'Adicionar ao carrinho'}</button>
-  </div>;
+  const add = useCart((s) => s.add);
+  const [amount, setAmount] = useState(quantity);
+  const [added, setAdded] = useState(false);
+  const soldOut = product.availability === 'SOLD_OUT';
+
+  const handleAdd = () => {
+    add(product, showQuantity ? amount : quantity);
+    setAdded(true);
+    setTimeout(() => setAdded(false), 2000);
+  };
+
+  return (
+    <div className="add-to-cart">
+      {showQuantity && (
+        <div className="quantity-stepper" aria-label={`Quantidade de ${product.name}`}>
+          <button type="button" aria-label="Diminuir quantidade" onClick={() => setAmount(Math.max(1, amount - 1))}>−</button>
+          <span>{amount}</span>
+          <button type="button" aria-label="Aumentar quantidade" onClick={() => setAmount(Math.min(99, amount + 1))}>+</button>
+        </div>
+      )}
+      <button
+        className={`btn-primary w-full transition-all ${added ? 'bg-[#2e6b34] hover:bg-[#25572a]' : ''}`}
+        disabled={soldOut}
+        onClick={handleAdd}
+      >
+        {soldOut ? 'Esgotado' : added ? '✓ Adicionado ao carrinho!' : 'Adicionar ao carrinho'}
+      </button>
+    </div>
+  );
 }

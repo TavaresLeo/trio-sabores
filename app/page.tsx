@@ -1,4 +1,5 @@
 export const dynamic = 'force-dynamic';
+import Image from 'next/image';
 import Link from 'next/link';
 import { db } from '@/lib/db';
 import { ProductCard } from '@/components/product-card';
@@ -9,9 +10,9 @@ export default async function Home() {
   const categories = await db.category.findMany({ where: { active: true }, orderBy: { sortOrder: 'asc' }, take: 4 });
   const categoryImages: Record<string, string> = {
     'bolos-caseiros': '/images/bolo-de-laranja-caseiro.jpeg',
-    'mini-pizzas': '/images/banner-vertical.jpeg',
-    salgados: '/images/banner-vertical.jpeg',
-    empadoes: '/images/banner-vertical.jpeg',
+    'mini-pizzas': '/images/mini-pizzas.jpeg',
+    salgados: '/images/salgadinhos-fritos.jpeg',
+    empadoes: '/images/empadao-artesanal.jpeg',
     doces: '/images/pudim-de-milho.jpeg',
     cafes: '/images/banner-vertical.jpeg',
   };
@@ -35,7 +36,7 @@ export default async function Home() {
       <div className="home-categories-heading"><h2>Categorias</h2><Link href="/cardapio">Ver todas</Link></div>
       <div className="home-category-grid">
         {categories.map((category) => <Link key={category.id} href={`/cardapio?categoria=${category.slug}`} className={`home-category-card home-category-${category.slug}`}>
-          <img src={categoryImages[category.slug] ?? '/images/banner-horizontal.jpeg'} alt="" />
+          <Image src={categoryImages[category.slug] ?? '/images/banner-horizontal.jpeg'} alt={category.name} width={280} height={200} className="object-cover" />
           <span>{category.name}</span>
         </Link>)}
       </div>

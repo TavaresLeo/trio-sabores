@@ -60,8 +60,34 @@ export function CategoryManager({ categories }: { categories: CategoryRow[] }) {
   const toggle = (category: CategoryRow) =>
     send(category.id, `/api/admin/categories/${category.id}`, json({ active: !category.active }));
 
-  const move = (category: CategoryRow, direction: -1 | 1) =>
-    send(category.id, `/api/admin/categories/${category.id}`, json({ sortOrder: category.sortOrder + direction }));
+  const move = async (category: CategoryRow, direction: -1 | 1) => {
+    const currentIndex = categories.findIndex((c) => c.id === category.id);
+    const targetIndex = currentIndex + direction;
+    if (targetIndex < 0 || targetIndex >= categories.length) return;
+    const targetCategory = categories[targetIndex];
+
+    let currentSort = targetCategory.sortOrder;
+    let targetSort = category.sortOrder;
+
+    if (currentSort === targetSort) {
+      if (direction === -1) {
+        targetSort = targetCategory.sortOrder + 1;
+        currentSort = Math.max(0, targetCategory.sortOrder);
+      } else {
+        currentSort = targetCategory.sortOrder + 1;
+        targetSort = Math.max(0, targetCategory.sortOrder);
+      }
+    }
+
+    currentSort = Math.max(0, currentSort);
+    targetSort = Math.max(0, targetSort);
+
+    setBusyId(category.id);
+    await request(`/api/admin/categories/${targetCategory.id}`, json({ sortOrder: targetSort }));
+    await request(`/api/admin/categories/${category.id}`, json({ sortOrder: currentSort }));
+    setBusyId('');
+    router.refresh();
+  };
 
   const remove = (category: CategoryRow) => {
     if (!confirm(`Excluir a categoria "${category.name}"?`)) return;

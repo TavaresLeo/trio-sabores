@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react';
 import { useCart } from '@/components/shop-state';
@@ -33,13 +34,14 @@ export default function Carrinho() {
               <div className="cart-panel-title"><h2>Produtos</h2><span>{items.length} itens</span></div>
               {items.map((item) => (
                 <article className="cart-row" key={item.id}>
-                  <img src={productImageFor(item)} alt={item.name} className="cart-thumb" />
+                  <Image src={productImageFor(item)} alt={item.name} width={72} height={72} className="cart-thumb object-cover" />
                   <div className="cart-item-details">
                     <h3>{item.name}</h3>
                     <span>{formatBRL(item.priceCents)} cada</span>
                     <div className="cart-mobile-controls">
                       <QuantityControl quantity={item.quantity} decrease={() => setQty(item.id, item.quantity - 1)} increase={() => setQty(item.id, item.quantity + 1)} />
                       <b>{formatBRL(item.priceCents * item.quantity)}</b>
+                      <button type="button" className="cart-mobile-remove" onClick={() => remove(item.id)} aria-label={`Remover ${item.name}`}><Trash2 size={16} /></button>
                     </div>
                   </div>
                   <QuantityControl quantity={item.quantity} decrease={() => setQty(item.id, item.quantity - 1)} increase={() => setQty(item.id, item.quantity + 1)} />

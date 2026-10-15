@@ -1,4 +1,5 @@
 import { notFound } from 'next/navigation';
+import Image from 'next/image';
 import { db } from '@/lib/db';
 import { formatBRL } from '@/lib/money';
 import { AddToCart } from '@/components/shop-state';
@@ -20,7 +21,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         </div>
         <div className="product-detail-grid">
           <div className="product-detail-photo">
-            <img src={productImageFor(product)} alt={product.name} className={`product-image-${product.slug}`} />
+            <Image src={productImageFor(product)} alt={product.name} width={500} height={500} priority className={`product-image-${product.slug} object-cover`} />
           </div>
           <div className="product-detail-content">
             <div className="product-rating">
