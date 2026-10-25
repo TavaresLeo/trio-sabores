@@ -43,6 +43,7 @@ const actionClass =
 export function ProductRow({ product, categories }: { product: EditableProduct; categories: { id: string; name: string }[] }) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
+  const [name, setName] = useState(product.name);
   const [description, setDescription] = useState(product.description);
   const [price, setPrice] = useState(() => centsToInput(product.priceCents));
   const [categoryId, setCategoryId] = useState(product.categoryId);
@@ -54,6 +55,7 @@ export function ProductRow({ product, categories }: { product: EditableProduct; 
   const [saving, setSaving] = useState(false);
 
   const reset = () => {
+    setName(product.name);
     setDescription(product.description);
     setPrice(centsToInput(product.priceCents));
     setCategoryId(product.categoryId);
@@ -93,6 +95,11 @@ export function ProductRow({ product, categories }: { product: EditableProduct; 
   };
 
   const save = async () => {
+    const trimmedName = name.trim();
+    if (!trimmedName || trimmedName.length < 2) {
+      setError('O nome do produto deve ter pelo menos 2 caracteres.');
+      return;
+    }
     const priceCents = parseBRL(price);
     if (priceCents < 1) {
       setError('Informe um preço maior que zero.');
@@ -105,6 +112,7 @@ export function ProductRow({ product, categories }: { product: EditableProduct; 
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          name: trimmedName,
           description,
           priceCents,
           categoryId,
@@ -143,7 +151,7 @@ export function ProductRow({ product, categories }: { product: EditableProduct; 
               />
             </div>
             <div>
-              <div className="font-semibold text-brown">{product.name}</div>
+              <div className="font-semibold text-brown">{name}</div>
               <div className="text-xs text-brown/50">/{product.slug}</div>
             </div>
           </div>
@@ -165,6 +173,19 @@ export function ProductRow({ product, categories }: { product: EditableProduct; 
         <tr className="border-b bg-[#fffdf9]">
           <td colSpan={5} className="p-4">
             <div className="grid gap-3 md:grid-cols-3">
+              <div className="field md:col-span-3">
+                <label htmlFor={`name-${product.id}`}>Nome do produto</label>
+                <input
+                  id={`name-${product.id}`}
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  minLength={2}
+                  maxLength={120}
+                  required
+                  placeholder="Nome do produto"
+                />
+              </div>
+
               <div className="field md:col-span-3">
                 <label htmlFor={`description-${product.id}`}>Descrição</label>
                 <textarea
