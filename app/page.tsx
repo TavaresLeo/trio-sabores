@@ -1,4 +1,5 @@
-export const dynamic = 'force-dynamic';
+// Conteúdo público: usa ISR em vez de renderizar a cada requisição.
+export const revalidate = 60;
 import Image from 'next/image';
 import Link from 'next/link';
 import { db } from '@/lib/db';

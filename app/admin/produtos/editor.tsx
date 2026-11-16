@@ -101,7 +101,7 @@ export function ProductRow({ product, categories }: { product: EditableProduct; 
       return;
     }
     const priceCents = parseBRL(price);
-    if (priceCents < 1) {
+    if (priceCents === null || priceCents < 1) {
       setError('Informe um preço maior que zero.');
       return;
     }

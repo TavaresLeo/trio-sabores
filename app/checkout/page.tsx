@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Check } from 'lucide-react';
-import { useCart } from '@/components/shop-state';
+import { useCart, useCartHydrated } from '@/components/shop-state';
 import { formatBRL, parseBRL } from '@/lib/money';
 import { productImageFor } from '@/lib/product-image';
 
@@ -15,6 +15,7 @@ const requiredAddressFields = ['cep', 'street', 'number', 'neighborhood', 'city'
 export default function Checkout() {
   const router = useRouter();
   const { items, subtotal, clear } = useCart();
+  const hydrated = useCartHydrated();
   const [step, setStep] = useState(1);
   const [method, setMethod] = useState<'PIX' | 'CARD' | 'CASH_ON_DELIVERY'>('PIX');
   const [loading, setLoading] = useState(false);
@@ -88,6 +89,10 @@ export default function Checkout() {
     return () => { active = false; };
   }, [form.distanceKm]);
 
+  if (!hydrated) {
+    return <main className="checkout-empty"><div className="form-card" aria-live="polite"><h1>Carregando seu carrinho...</h1></div></main>;
+  }
+
   if (items.length === 0) {
     return <main className="checkout-empty"><div className="form-card"><h1>Seu carrinho está vazio.</h1><Link href="/cardapio" className="btn-primary">Voltar ao cardápio</Link></div></main>;
   }
@@ -111,9 +116,13 @@ export default function Checkout() {
             city: data.city || prev.city,
             state: data.state || prev.state,
           }));
+        } else {
+          // Falha/timeout do ViaCEP: o preenchimento manual continua disponível.
+          const data = await res.json().catch(() => null);
+          if (data?.error) setError(data.error);
         }
       } catch {
-        // silently fallback
+        setError('Não foi possível consultar o CEP agora. Preencha o endereço manualmente.');
       } finally {
         setCepLoading(false);
       }
@@ -152,6 +161,10 @@ export default function Checkout() {
   const continueToReview = () => {
     if (method === 'CASH_ON_DELIVERY' && form.cashChange.trim()) {
       const changeCents = parseBRL(form.cashChange);
+      if (changeCents === null) {
+        setError('Informe um valor de troco válido, como 50,00 ou R$ 100,00.');
+        return;
+      }
       if (changeCents < currentTotal) {
         setError(`O valor para troco deve ser maior ou igual ao total do pedido (${formatBRL(currentTotal)}).`);
         return;
@@ -162,10 +175,20 @@ export default function Checkout() {
   };
 
   const submit = async () => {
+    if (loading) return;
+    let changeCents: number | undefined;
+    if (form.cashChange.trim()) {
+      const parsedChange = parseBRL(form.cashChange);
+      if (parsedChange === null) {
+        setError('Informe um valor de troco válido, como 50,00 ou R$ 100,00.');
+        return;
+      }
+      changeCents = parsedChange;
+    }
+
     setLoading(true);
     setError('');
     try {
-      const changeCents = form.cashChange ? parseBRL(form.cashChange) : undefined;
       const response = await fetch('/api/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -201,6 +224,8 @@ export default function Checkout() {
     }
   };
 
+  const changeCentsForReview = form.cashChange ? parseBRL(form.cashChange) : null;
+
   return (
     <main className="checkout-page">
       <div className="checkout-heading">
@@ -224,9 +249,9 @@ export default function Checkout() {
             <h2>Dados do Cliente</h2>
             <p className="checkout-helper">Preencha seus dados para receber atualizações sobre o pedido.</p>
             <div className="checkout-fields">
-              <Field label="Nome completo" value={form.name} onChange={(value) => update('name', value)} required />
-              <Field label="Telefone / WhatsApp" value={form.phone} onChange={(value) => update('phone', value)} required />
-              <Field label="E-mail" type="email" value={form.email} onChange={(value) => update('email', value)} required />
+              <Field label="Nome completo" name="name" autoComplete="name" value={form.name} onChange={(value) => update('name', value)} required />
+              <Field label="Telefone / WhatsApp" name="phone" type="tel" autoComplete="tel" inputMode="tel" value={form.phone} onChange={(value) => update('phone', value)} required />
+              <Field label="E-mail" name="email" type="email" autoComplete="email" value={form.email} onChange={(value) => update('email', value)} required />
             </div>
             <p className="checkout-helper">Já tem cadastro? <Link className="text-wine underline" href="/conta">Entre na sua conta</Link> para preencher seus dados salvos.</p>
             {error && <p role="alert" className="checkout-error">{error}</p>}
@@ -237,18 +262,18 @@ export default function Checkout() {
             <p className="checkout-helper">Informe onde deseja receber seu pedido.</p>
             <div className="checkout-fields">
               <div className="field">
-                <label>CEP{cepLoading && <span className="text-xs text-wine ml-2 font-normal">(buscando endereço...)</span>}<span className="required-mark"> *</span></label>
-                <input value={form.cep} onChange={(e) => handleCepChange(e.target.value)} required maxLength={9} placeholder="00000-000" />
+                <label htmlFor="checkout-cep">CEP{cepLoading && <span className="text-xs text-wine ml-2 font-normal">(buscando endereço...)</span>}<span className="required-mark"> *</span></label>
+                <input id="checkout-cep" name="postal-code" autoComplete="postal-code" inputMode="numeric" value={form.cep} onChange={(e) => handleCepChange(e.target.value)} required maxLength={9} placeholder="00000-000" />
               </div>
-              <Field label="Rua" value={form.street} onChange={(value) => update('street', value)} required />
-              <Field label="Número" value={form.number} onChange={(value) => update('number', value)} required />
-              <Field label="Complemento" value={form.complement} onChange={(value) => update('complement', value)} />
-              <Field label="Bairro" value={form.neighborhood} onChange={(value) => update('neighborhood', value)} required />
-              <Field label="Cidade" value={form.city} onChange={(value) => update('city', value)} required />
-              <Field label="Estado (UF)" value={form.state} onChange={(value) => update('state', value)} required />
+              <Field label="Rua" name="street" autoComplete="address-line1" value={form.street} onChange={(value) => update('street', value)} required />
+              <Field label="Número" name="number" autoComplete="off" inputMode="numeric" value={form.number} onChange={(value) => update('number', value)} required />
+              <Field label="Complemento" name="complement" autoComplete="address-line2" value={form.complement} onChange={(value) => update('complement', value)} />
+              <Field label="Bairro" name="neighborhood" autoComplete="address-level3" value={form.neighborhood} onChange={(value) => update('neighborhood', value)} required />
+              <Field label="Cidade" name="city" autoComplete="address-level2" value={form.city} onChange={(value) => update('city', value)} required />
+              <Field label="Estado (UF)" name="state" autoComplete="address-level1" value={form.state} onChange={(value) => update('state', value)} required />
               <div className="field">
                 <label>Distância estimada (km)<span className="required-mark"> *</span></label>
-                <input type="number" step="0.5" min="0" max="12" value={form.distanceKm} onChange={(e) => update('distanceKm', e.target.value)} required />
+                <input type="number" name="distance-km" autoComplete="off" step="0.5" min="0" max="12" value={form.distanceKm} onChange={(e) => update('distanceKm', e.target.value)} required />
                 {deliveryQuote && <small className={deliveryQuote.available ? "text-green-700" : "text-red"}>{deliveryQuote.message}</small>}
               </div>
             </div>
@@ -275,12 +300,12 @@ export default function Checkout() {
             )}
             {method === 'CASH_ON_DELIVERY' && (
               <div className="field checkout-change-field">
-                <label>Precisa de troco para quanto?</label>
-                <input value={form.cashChange} onChange={(event) => update('cashChange', event.target.value)} placeholder="Ex: R$ 50,00 ou 100" />
+                <label htmlFor="checkout-change">Precisa de troco para quanto?</label>
+                <input id="checkout-change" name="cash-change" autoComplete="off" inputMode="decimal" value={form.cashChange} onChange={(event) => update('cashChange', event.target.value)} placeholder="Ex: R$ 50,00 ou 100" />
                 <small className="text-brown/60">Informe o valor total da nota que você usará para pagar.</small>
               </div>
             )}
-            <div className="field checkout-notes"><label>Observações do pedido</label><textarea rows={3} value={form.notes} onChange={(event) => update('notes', event.target.value)} maxLength={500} /></div>
+            <div className="field checkout-notes"><label>Observações do pedido</label><textarea name="notes" autoComplete="off" rows={3} value={form.notes} onChange={(event) => update('notes', event.target.value)} maxLength={500} /></div>
             {error && <p role="alert" className="checkout-error">{error}</p>}
             <div className="checkout-actions"><button className="btn-secondary" onClick={() => setStep(2)}>Voltar</button><button className="btn-primary" onClick={continueToReview}>Revisar pedido</button></div>
           </>}
@@ -291,7 +316,7 @@ export default function Checkout() {
               <b>{form.name}</b><span>{form.phone} · {form.email}</span>
               <span>{form.street}, {form.number} · {form.neighborhood}</span>
               <span>{form.city}/{form.state} · {form.cep}</span>
-              <span>Pagamento: {method === 'CASH_ON_DELIVERY' ? `Dinheiro ${form.cashChange ? `(Troco para ${formatBRL(parseBRL(form.cashChange))})` : '(Sem troco)'}` : method}</span>
+              <span>Pagamento: {method === 'CASH_ON_DELIVERY' ? `Dinheiro ${changeCentsForReview !== null ? `(Troco para ${formatBRL(changeCentsForReview)})` : '(Sem troco)'}` : method}</span>
               {deliveryQuote?.available && <span>Taxa estimada de entrega: {formatBRL(deliveryQuote.feeCents)} ({form.distanceKm} km)</span>}
             </div>
             {error && <p role="alert" className="checkout-error">{error}</p>}
@@ -321,9 +346,29 @@ export default function Checkout() {
 }
 
 function Field({
-  label, value, onChange, required = false, type = 'text',
+  label, value, onChange, required = false, type = 'text', name, autoComplete, inputMode,
 }: {
-  label: string; value: string; onChange: (value: string) => void; required?: boolean; type?: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  required?: boolean;
+  type?: string;
+  name?: string;
+  autoComplete?: string;
+  inputMode?: 'text' | 'tel' | 'email' | 'numeric' | 'decimal';
 }) {
-  return <div className="field"><label>{label}{required && <span className="required-mark"> *</span>}</label><input type={type} value={value} onChange={(event) => onChange(event.target.value)} required={required} /></div>;
+  return (
+    <div className="field">
+      <label>{label}{required && <span className="required-mark"> *</span>}</label>
+      <input
+        type={type}
+        name={name}
+        autoComplete={autoComplete}
+        inputMode={inputMode}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
+        required={required}
+      />
+    </div>
+  );
 }

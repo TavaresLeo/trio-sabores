@@ -48,6 +48,12 @@ async function main() {
   const existingAdmin = await prisma.user.findUnique({ where: { email: adminEmail } });
   const needsAdminBootstrap = !existingAdmin || (existingAdmin.sessionVersion === 0 && !existingAdmin.mustChangePassword);
   if (needsAdminBootstrap) {
+    if (!initialAdminPassword) {
+      throw new Error(
+        'ADMIN_INITIAL_PASSWORD is required to create or reset the initial admin account. ' +
+          'Set it in the environment (minimum 8 bytes in development, 16 in production).',
+      );
+    }
     const passwordBytes = new TextEncoder().encode(initialAdminPassword).byteLength;
     const minimumPasswordBytes = process.env.NODE_ENV === 'production' ? 16 : 8;
     if (passwordBytes < minimumPasswordBytes || passwordBytes > 72) {

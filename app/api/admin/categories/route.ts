@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { verifyAdmin } from '@/lib/auth';
+import { jsonError, newRequestId, serverError } from '@/lib/http';
 
 const schema = z.object({
   name: z.string().trim().min(2).max(60),
@@ -29,6 +30,7 @@ async function uniqueSlug(name: string) {
 }
 
 export async function POST(req: Request) {
+  const requestId = newRequestId();
   if (!await verifyAdmin()) return NextResponse.json({ error: 'Não autorizado.' }, { status: 401 });
   try {
     const body = schema.parse(await req.json());
@@ -49,6 +51,7 @@ export async function POST(req: Request) {
     });
     return NextResponse.json({ category }, { status: 201 });
   } catch (error) {
-    return NextResponse.json({ error: error instanceof Error ? error.message : 'Erro ao criar categoria.' }, { status: 400 });
+    if (error instanceof SyntaxError) return jsonError('Dados inválidos.', 400);
+    return serverError(requestId, 'admin_create_category', error);
   }
 }

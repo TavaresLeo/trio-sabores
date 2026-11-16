@@ -401,3 +401,14 @@ a{transition:color .18s ease}
   .delivery-review-controls{align-items:stretch;flex-direction:column}
   .delivery-review-controls input{width:100%}
 }
+
+/* Diálogo de confirmação acessível (substitui window.confirm) */
+.confirm-overlay{position:fixed;inset:0;z-index:80;display:flex;align-items:center;justify-content:center;padding:20px;background:#28000ab8}
+.confirm-dialog{width:100%;max-width:430px;border:1px solid var(--gold);border-radius:14px;background:#fffdf9;padding:24px;box-shadow:0 24px 60px #28000a55}
+.confirm-dialog h2{margin:0 0 8px;color:var(--wine);font:600 22px Georgia,serif}
+.confirm-dialog p{margin:0;color:#6e524d;font-size:14px;line-height:1.55}
+.confirm-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:22px;flex-wrap:wrap}
+.confirm-actions .btn-primary,.confirm-actions .btn-secondary{min-width:130px}
+.confirm-danger{background:var(--red);border-color:var(--red)}
+.confirm-danger:hover{background:#a4182f}
+@media(max-width:480px){.confirm-actions{flex-direction:column-reverse}.confirm-actions .btn-primary,.confirm-actions .btn-secondary{width:100%}}

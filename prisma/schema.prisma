@@ -74,6 +74,8 @@ model Address {
   createdAt    DateTime @default(now())
   user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   orders       Order[]
+
+  @@index([userId])
 }
 
 model Category {
@@ -83,6 +85,8 @@ model Category {
   sortOrder Int       @default(0)
   active    Boolean   @default(true)
   products  Product[]
+
+  @@index([active, sortOrder])
 }
 
 model Product {
@@ -97,14 +101,19 @@ model Product {
   badge        String?
   availability ProductAvailability @default(AVAILABLE)
   featured     Boolean            @default(false)
-  rating       Float              @default(5)
+  // Sem sistema de avaliações: `rating` fica nulo até existir avaliação real.
+  rating       Float?
   reviewsCount Int                @default(0)
   notes        String?
   sortOrder    Int                @default(0)
   createdAt    DateTime           @default(now())
   updatedAt    DateTime           @updatedAt
-  category     Category           @relation(fields: [categoryId], references: [id])
+  // Excluir uma categoria com produtos é bloqueado no banco (a API também devolve 409).
+  category     Category           @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   orderItems   OrderItem[]
+
+  @@index([categoryId])
+  @@index([availability, featured, sortOrder])
 }
 
 model DeliveryRule {
@@ -114,6 +123,8 @@ model DeliveryRule {
   baseFeeCents   Int
   extraFeeCentsPerKm Int @default(0)
   enabled        Boolean @default(true)
+
+  @@index([enabled, minKm])
 }
 
 model Coupon {
@@ -125,6 +136,8 @@ model Coupon {
   active          Boolean  @default(true)
   startsAt        DateTime?
   endsAt          DateTime?
+
+  @@index([active, code])
 }
 
 model Order {
@@ -151,6 +164,11 @@ model Order {
   user             User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
   address          Address?       @relation(fields: [addressId], references: [id], onDelete: SetNull)
   items            OrderItem[]
+
+  @@index([createdAt])
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+  @@index([customerEmail])
 }
 
 model OrderItem {
@@ -162,7 +180,11 @@ model OrderItem {
   unitPriceCents Int
   subtotalCents  Int
   order          Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  product        Product @relation(fields: [productId], references: [id])
+  // Restrict: o histórico do pedido nunca perde o produto de referência.
+  product        Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  @@index([orderId])
+  @@index([productId])
 }
 
 model SiteSetting {
@@ -170,4 +192,18 @@ model SiteSetting {
   key           String   @unique
   value         String
   updatedAt     DateTime @updatedAt
+}
+
+/// Contador de tentativas para rate limiting compartilhado entre instâncias
+/// serverless. Armazenado no PostgreSQL para não depender de memória do processo.
+model RateLimitBucket {
+  key             String   @id
+  count           Int      @default(0)
+  /// Quantidade de bloqueios já aplicados (usada para espera progressiva).
+  violations      Int      @default(0)
+  windowStartedAt DateTime @default(now())
+  blockedUntil    DateTime?
+  updatedAt       DateTime @updatedAt
+
+  @@index([updatedAt])
 }

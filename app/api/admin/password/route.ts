@@ -3,13 +3,27 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { authCookieOptions, authCookies, hashPassword, verifyAdmin } from '@/lib/auth';
 import { db } from '@/lib/db';
+import { clientIp, rateLimitUnavailable, rateLimited, serverError } from '@/lib/http';
+import { RATE_LIMITS, RateLimitUnavailableError, rateLimitKey, registerRateLimitAttempt } from '@/lib/rate-limit';
 
 const passwordSchema = z.string().min(8).max(72).refine((value) => new TextEncoder().encode(value).byteLength <= 72);
 const schema = z.object({ currentPassword: passwordSchema, newPassword: passwordSchema });
 
 export async function POST(req: Request) {
+  const requestId = crypto.randomUUID();
   const admin = await verifyAdmin(true);
   if (!admin) return NextResponse.json({ error: 'Sessão administrativa inválida.' }, { status: 401 });
+
+  try {
+    const limit = await registerRateLimitAttempt(
+      rateLimitKey(`admin-password:${admin.id}`, clientIp(req)),
+      RATE_LIMITS.passwordChange,
+    );
+    if (!limit.allowed) return rateLimited(limit.retryAfterSeconds, requestId);
+  } catch (error) {
+    if (error instanceof RateLimitUnavailableError) return rateLimitUnavailable(requestId);
+    return serverError(requestId, 'admin_password_rate_limit', error);
+  }
 
   let input: unknown;
   try {

@@ -1,86 +1,110 @@
+import { randomUUID } from 'node:crypto';
+import { mkdir, writeFile } from 'node:fs/promises';
+import path from 'node:path';
 import { NextResponse } from 'next/server';
 import { put } from '@vercel/blob';
-import { writeFile, mkdir } from 'node:fs/promises';
-import path from 'node:path';
 import { verifyAdmin } from '@/lib/auth';
+import {
+  NO_STORE,
+  clientIp,
+  crossOriginRejected,
+  isSameOrigin,
+  jsonError,
+  logSecurityEvent,
+  newRequestId,
+  rateLimitUnavailable,
+  rateLimited,
+  serverError,
+} from '@/lib/http';
+import { RATE_LIMITS, RateLimitUnavailableError, rateLimitKey, registerRateLimitAttempt } from '@/lib/rate-limit';
+import { MAX_UPLOAD_BYTES, isDeclaredTypeCompatible, sniffImageType } from '@/lib/upload';
+import { cleanupRateLimitBuckets } from '@/lib/rate-limit';
 
+// Runtime Node.js é necessário para escrita em disco no desenvolvimento local
+// e para o `Buffer` usado na validação por magic bytes. Em produção o destino
+// é sempre o Vercel Blob (sem fallback para o disco efêmero).
 export const runtime = 'nodejs';
-const MAX_BYTES = 10 * 1024 * 1024; // 10MB
-const ALLOWED_MIME = new Set([
-  'image/jpeg',
-  'image/jpg',
-  'image/png',
-  'image/webp',
-  'image/avif',
-  'image/svg+xml',
-]);
+
+const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads');
 
 export async function POST(req: Request) {
-  if (!await verifyAdmin()) {
-    return NextResponse.json({ error: 'Não autorizado.' }, { status: 401 });
+  const requestId = newRequestId();
+
+  if (!isSameOrigin(req)) return crossOriginRejected(requestId);
+  if (!(await verifyAdmin())) return jsonError('Não autorizado.', 401);
+
+  try {
+    const limit = await registerRateLimitAttempt(
+      rateLimitKey('upload', clientIp(req)),
+      RATE_LIMITS.upload,
+    );
+    void cleanupRateLimitBuckets();
+    if (!limit.allowed) return rateLimited(limit.retryAfterSeconds, requestId);
+  } catch (error) {
+    if (error instanceof RateLimitUnavailableError) return rateLimitUnavailable(requestId);
+    return serverError(requestId, 'admin_upload_rate_limit', error);
   }
 
   const form = await req.formData().catch(() => null);
-  if (!form) {
-    return NextResponse.json({ error: 'Formulário inválido.' }, { status: 400 });
-  }
+  if (!form) return jsonError('Formulário inválido.', 400);
 
   const file = form.get('file');
-  if (!(file instanceof File)) {
-    return NextResponse.json({ error: 'Arquivo ausente.' }, { status: 400 });
-  }
+  if (!(file instanceof File)) return jsonError('Arquivo ausente.', 400);
 
-  if (file.size > MAX_BYTES) {
-    return NextResponse.json({ error: 'A imagem deve ter até 10 MB.' }, { status: 413 });
-  }
+  if (file.size === 0) return jsonError('O arquivo está vazio.', 400);
+  if (file.size > MAX_UPLOAD_BYTES) return jsonError('A imagem deve ter até 10 MB.', 413);
 
-  // Verifica MIME type ou extensão do arquivo
-  const extMatch = file.name.match(/\.([a-zA-Z0-9]+)$/);
-  const ext = extMatch ? extMatch[1].toLowerCase() : '';
-  const validExtensions = new Set(['jpg', 'jpeg', 'png', 'webp', 'avif', 'svg']);
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const detected = sniffImageType(bytes);
 
-  if (!ALLOWED_MIME.has(file.type) && !validExtensions.has(ext)) {
-    return NextResponse.json(
-      { error: 'Formato não permitido. Envie um arquivo JPG, JPEG, PNG, WebP, AVIF ou SVG.' },
-      { status: 415 }
+  if (!detected) {
+    logSecurityEvent('upload_rejected_unknown_type', { requestId, size: file.size });
+    return jsonError(
+      'Formato não permitido. Envie uma imagem JPEG, PNG, WebP ou AVIF válida.',
+      415,
     );
   }
 
-  // Normaliza o nome do arquivo para ser seguro na URL e no sistema de arquivos
-  const safeBaseName = file.name
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // remove acentos
-    .replace(/[^a-z0-9.\-_]/g, '-');
-  const finalExt = ext ? `.${ext === 'jpeg' ? 'jpeg' : ext}` : '.jpg';
-  const rawNameWithoutExt = safeBaseName.replace(/\.[^/.]+$/, '');
-  const fileName = `${Date.now()}-${rawNameWithoutExt}${finalExt}`;
+  const compatibility = isDeclaredTypeCompatible(file.type, file.name, detected);
+  if (!compatibility.ok) {
+    logSecurityEvent('upload_rejected_type_mismatch', { requestId, reason: compatibility.reason });
+    return jsonError('O conteúdo do arquivo não corresponde ao formato declarado.', 415);
+  }
 
-  // Se tiver Vercel Blob configurado (produção na Vercel), usa o Blob
-  if (process.env.BLOB_READ_WRITE_TOKEN) {
+  // Nome totalmente aleatório: sem nome do cliente, sem path traversal,
+  // sem sobrescrita de arquivos existentes.
+  const objectName = `products/${randomUUID()}.${detected.ext}`;
+  const blobToken = process.env.BLOB_READ_WRITE_TOKEN;
+
+  if (blobToken) {
     try {
-      const blob = await put(`products/${fileName}`, file, { access: 'public' });
-      return NextResponse.json({ url: blob.url });
-    } catch (blobError) {
-      console.warn('Falha no upload para Vercel Blob, usando armazenamento local como fallback:', blobError);
+      const blob = await put(objectName, Buffer.from(bytes), {
+        access: 'public',
+        contentType: detected.mime,
+        token: blobToken,
+        addRandomSuffix: false,
+      });
+      return NextResponse.json({ url: blob.url }, { headers: NO_STORE });
+    } catch (error) {
+      // Sem fallback silencioso para disco: em produção o arquivo não persistiria.
+      return serverError(requestId, 'admin_upload_blob', error);
     }
   }
 
-  // Armazenamento local (desenvolvimento / VPS / servidor padrão)
+  if (process.env.NODE_ENV === 'production') {
+    return jsonError(
+      'Armazenamento de imagens não configurado. Defina BLOB_READ_WRITE_TOKEN no ambiente de produção.',
+      503,
+    );
+  }
+
+  // Desenvolvimento local: disco controlado, nome aleatório, diretório fixo.
   try {
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads');
-    await mkdir(uploadDir, { recursive: true });
-
-    const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-    const filePath = path.join(uploadDir, fileName);
-
-    await writeFile(filePath, buffer);
-
-    const publicUrl = `/uploads/${fileName}`;
-    return NextResponse.json({ url: publicUrl, fileName });
-  } catch (err) {
-    console.error('Erro ao salvar imagem localmente:', err);
-    return NextResponse.json({ error: 'Erro ao processar e salvar a imagem no servidor.' }, { status: 500 });
+    await mkdir(UPLOAD_DIR, { recursive: true });
+    const fileName = path.basename(objectName);
+    await writeFile(path.join(UPLOAD_DIR, fileName), bytes, { flag: 'wx' });
+    return NextResponse.json({ url: `/uploads/${fileName}` }, { headers: NO_STORE });
+  } catch (error) {
+    return serverError(requestId, 'admin_upload_local', error);
   }
 }

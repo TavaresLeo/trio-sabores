@@ -1,19 +1,57 @@
 'use client';
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { useEffect, useState } from 'react';
 import type { CartItem, ShopProduct } from '@/types/shop';
 import { productImageFor } from '@/lib/product-image';
-import { useState } from 'react';
 
-type CartState = { items: CartItem[]; drawerOpen: boolean; add: (p: ShopProduct, qty?: number) => void; remove: (id: string) => void; setQty: (id: string, quantity: number) => void; clear: () => void; open: () => void; close: () => void; totalItems: () => number; subtotal: () => number; };
+type CartState = {
+  items: CartItem[];
+  drawerOpen: boolean;
+  hydrated: boolean;
+  add: (p: ShopProduct, qty?: number) => void;
+  remove: (id: string) => void;
+  setQty: (id: string, quantity: number) => void;
+  clear: () => void;
+  open: () => void;
+  close: () => void;
+  setHydrated: () => void;
+  totalItems: () => number;
+  subtotal: () => number;
+};
+
 export const useCart = create<CartState>()(persist((set, get) => ({
-  items: [], drawerOpen: false,
+  items: [],
+  drawerOpen: false,
+  hydrated: false,
   add: (p, qty = 1) => set((s) => { const found = s.items.find(i => i.id === p.id); return { items: found ? s.items.map(i => i.id === p.id ? {...i, quantity: Math.min(i.quantity + qty, 99)} : i) : [...s.items, {id:p.id,slug:p.slug,name:p.name,priceCents:p.priceCents,imageUrl:productImageFor(p),quantity:Math.min(qty,99)}] }; }),
   remove: (id) => set(s => ({items:s.items.filter(i=>i.id!==id)})),
   setQty: (id, quantity) => set(s => ({items: quantity > 0 ? s.items.map(i => i.id===id ? {...i, quantity: Math.min(quantity,99)} : i) : s.items.filter(i=>i.id!==id)})),
   clear: () => set({items:[]}), open:()=>set({drawerOpen:true}), close:()=>set({drawerOpen:false}),
+  setHydrated: () => set({ hydrated: true }),
   totalItems:()=>get().items.reduce((a,i)=>a+i.quantity,0), subtotal:()=>get().items.reduce((a,i)=>a+i.quantity*i.priceCents,0),
-}), {name:'trio-sabores-cart',skipHydration:true}));
+}), {
+  name: 'trio-sabores-cart',
+  // A hidratação só roda no cliente: evita divergência entre SSR e browser.
+  skipHydration: true,
+  partialize: (state) => ({ items: state.items }),
+  onRehydrateStorage: () => (state) => {
+    state?.setHydrated();
+  },
+}));
+
+/**
+ * Garante que o carrinho salvo em localStorage seja recuperado e informa
+ * quando a leitura terminou. Sem isso, a UI mostraria "carrinho vazio"
+ * enquanto os dados ainda estão sendo carregados.
+ */
+export function useCartHydrated() {
+  const hydrated = useCart((s) => s.hydrated);
+  useEffect(() => {
+    void useCart.persist.rehydrate();
+  }, []);
+  return hydrated;
+}
 
 export function AddToCart({product, quantity=1, showQuantity=false}: {product: ShopProduct; quantity?: number; showQuantity?: boolean}) {
   const add = useCart((s) => s.add);

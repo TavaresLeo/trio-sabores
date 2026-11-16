@@ -6,6 +6,10 @@ import { AddToCart } from './shop-state';
 import { productImageFor } from '@/lib/product-image';
 
 export function ProductCard({ product }: { product: ShopProduct }) {
+  const reviewsCount = product.reviewsCount ?? 0;
+  const rating = product.rating ?? null;
+  const hasReviews = reviewsCount > 0 && rating !== null;
+
   return (
     <article className="product-card group">
       <Link href={`/produto/${product.slug}`} className="product-card-image-link">
@@ -21,11 +25,13 @@ export function ProductCard({ product }: { product: ShopProduct }) {
         </div>
       </Link>
       <div className="product-card-info">
-        <div className="product-rating">
-          <span className="stars" aria-label={`${product.rating ?? 4.9} de 5 estrelas`}>★★★★★</span>
-          <span>{(product.rating ?? 4.9).toFixed(1)}</span>
-          <span className="review-count">({product.reviewsCount ?? 24} avaliações)</span>
-        </div>
+        {hasReviews && (
+          <div className="product-rating">
+            <span className="stars" aria-label={`${rating.toFixed(1)} de 5 estrelas`}>★★★★★</span>
+            <span>{rating.toFixed(1)}</span>
+            <span className="review-count">({reviewsCount} avaliações)</span>
+          </div>
+        )}
         <Link href={`/produto/${product.slug}`}>
           <h3 className="font-serif text-lg text-brown hover:text-wine">{product.name}</h3>
         </Link>

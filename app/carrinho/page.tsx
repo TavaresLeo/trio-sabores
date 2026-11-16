@@ -1,15 +1,32 @@
 'use client';
 
+import { useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { Minus, Plus, ShoppingBag, Trash2 } from 'lucide-react';
-import { useCart } from '@/components/shop-state';
+import { useCart, useCartHydrated } from '@/components/shop-state';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { formatBRL } from '@/lib/money';
 import { productImageFor } from '@/lib/product-image';
 
 export default function Carrinho() {
   const { items, remove, setQty, subtotal, clear } = useCart();
+  const hydrated = useCartHydrated();
+  const [confirmClear, setConfirmClear] = useState(false);
   const total = subtotal();
+
+  if (!hydrated) {
+    return (
+      <main className="cart-page">
+        <div className="cart-layout">
+          <div className="cart-empty" aria-live="polite">
+            <h2>Carregando seu carrinho...</h2>
+            <p>Recuperando os itens salvos neste dispositivo.</p>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="cart-page">
@@ -51,7 +68,7 @@ export default function Carrinho() {
                   </div>
                 </article>
               ))}
-              <button type="button" className="cart-clear" onClick={() => { if (confirm('Limpar o carrinho?')) clear(); }}>Limpar carrinho</button>
+              <button type="button" className="cart-clear" onClick={() => setConfirmClear(true)}>Limpar carrinho</button>
             </>
           )}
         </div>
@@ -64,6 +81,20 @@ export default function Carrinho() {
           <p>Entrega e descontos calculados no checkout.</p>
         </aside>
       </section>
+
+      <ConfirmDialog
+        open={confirmClear}
+        title="Limpar o carrinho?"
+        description="Todos os itens selecionados serão removidos. Você poderá adicioná-los novamente pelo cardápio."
+        confirmLabel="Sim, limpar carrinho"
+        cancelLabel="Manter itens"
+        destructive
+        onCancel={() => setConfirmClear(false)}
+        onConfirm={() => {
+          clear();
+          setConfirmClear(false);
+        }}
+      />
     </main>
   );
 }

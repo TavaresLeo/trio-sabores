@@ -2,12 +2,13 @@ import { NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { verifyAdmin } from '@/lib/auth';
+import { isSafeImageUrl } from '@/lib/validators';
 
 const schema = z.object({
   name: z.string().min(2).max(120).optional(),
   description: z.string().trim().min(5).max(500).optional(),
   priceCents: z.number().int().positive().optional(),
-  imageUrl: z.string().min(1).optional(),
+  imageUrl: z.string().trim().min(1).max(500).refine(isSafeImageUrl, 'Informe uma URL de imagem válida.').optional(),
   categoryId: z.string().min(1).optional(),
   availability: z.enum(['AVAILABLE', 'SOLD_OUT', 'PREORDER']).optional(),
   featured: z.boolean().optional(),

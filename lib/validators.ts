@@ -1,5 +1,24 @@
 import { z } from 'zod';
 
+const SAFE_IMAGE_PATH = /^\/(?:images|uploads|products)\/[\w./-]+$/;
+
+/**
+ * Só aceita caminhos internos conhecidos, URLs https e data URLs de imagem.
+ * Bloqueia `javascript:`, `data:text/html` e outros esquemas executáveis.
+ */
+export function isSafeImageUrl(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed) return false;
+  if (/^data:image\/(jpeg|png|webp|avif);base64,/i.test(trimmed)) return true;
+  if (trimmed.startsWith('/')) return SAFE_IMAGE_PATH.test(trimmed);
+  try {
+    const url = new URL(trimmed);
+    return url.protocol === 'https:' || url.protocol === 'http:';
+  } catch {
+    return false;
+  }
+}
+
 const brazilianStateCodes: Record<string, string> = {
   acre: 'AC',
   alagoas: 'AL',

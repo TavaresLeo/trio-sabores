@@ -9,3 +9,6 @@ out
 coverage
 .DS_Store
 prisma/dev.db
+
+# Local toolchain / disposable test artifacts
+.tools/

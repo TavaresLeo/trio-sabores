@@ -2,49 +2,94 @@
 
 ## 1. PostgreSQL
 
-Use PostgreSQL gerenciado, por exemplo Supabase, Neon ou Prisma Postgres. Crie `DATABASE_URL` com a conexão de produção.
+Use PostgreSQL gerenciado (Neon, Supabase, Prisma Postgres). Configure **duas**
+URLs:
 
-## 2. Vercel
+- `DATABASE_URL` — endpoint de **pooling** (runtime). Ex.:
+  `postgresql://user:pass@ep-xxx-pooler.region.aws.neon.tech/db?sslmode=verify-full`
+- `DIRECT_URL` — conexão **direta**, usada por migrations e seed.
 
-Importe o repositório no Vercel. O framework é detectado como Next.js. Configure:
+Mantenha `sslmode=verify-full` (valida certificado + hostname). Detalhes em
+[docs/DATABASE.md](docs/DATABASE.md).
 
-- `DATABASE_URL`
-- `JWT_SECRET` (at least 32 random bytes; the app fails authentication if it is missing or too short)
-- `ADMIN_INITIAL_PASSWORD` (required only when creating the admin or migrating an old admin; 16–72 UTF-8 bytes in production)
-- `NEXT_PUBLIC_APP_URL`
-- `NEXT_PUBLIC_WHATSAPP_NUMBER`
-- `BLOB_READ_WRITE_TOKEN` para upload de imagens
-- `MERCADOPAGO_ACCESS_TOKEN` e `MERCADOPAGO_PUBLIC_KEY` quando a camada de pagamento real for ativada
+## 2. Migrations
 
-Antes do primeiro acesso, aplique o schema:
+O schema é versionado em `prisma/migrations/`.
+
+**Banco novo:**
 
 ```bash
-npx prisma db push
+npx prisma migrate deploy
 npm run db:seed
 ```
 
-For local development, set `ADMIN_INITIAL_PASSWORD=admin123` before the initial seed. The first admin login is restricted to password settings until the password is changed. In production, configure a unique secret for `ADMIN_INITIAL_PASSWORD`; the application does not embed a known bootstrap password. On existing installations, the first seed run after this update provisions the configured one-time password; later seed runs do not reset a changed password.
+**Banco que já existe** (criado antes com `db push`):
 
-Customer accounts can be registered from `/conta`. Authenticated checkouts are associated with the account, and the account page shows its own saved delivery addresses and purchase history. Guest checkout remains available. Delivery orders require a complete address validated by the server. Because the distance is an estimate supplied during checkout, deliveries stay pending until an admin reviews the route in **Gerenciar pedidos** and confirms the corrected distance and fee.
+```bash
+npx prisma migrate resolve --applied 0_init   # baseline, uma única vez
+npx prisma migrate deploy                     # aplica o hardening
+npx prisma migrate status                     # confirma
+```
 
-Reapply `npx prisma db push` after schema updates to add the account-session fields without deleting existing orders or addresses.
+Nunca use `prisma migrate dev` contra produção. Nenhuma migration apaga linhas:
+a única alteração de dados é anular `Product.rating` onde `reviewsCount = 0`.
 
-## 3. Domínio
+## 3. Vercel
 
-Adicione o domínio personalizado no projeto Vercel e atualize `NEXT_PUBLIC_APP_URL` para o domínio final.
+Importe o repositório (framework detectado: Next.js). Configure:
 
-## 4. Operação
+| Variável | Obrigatória | Notas |
+|---|---|---|
+| `DATABASE_URL` | sim | endpoint de pooling |
+| `DIRECT_URL` | sim | usado pelo Prisma CLI |
+| `JWT_SECRET` | sim | ≥ 32 bytes, único por ambiente |
+| `ADMIN_INITIAL_PASSWORD` | ao criar/redefinir admin | ≥ 16 bytes em produção |
+| `NEXT_PUBLIC_APP_URL` | sim | domínio final, com `https://` |
+| `NEXT_PUBLIC_WHATSAPP_NUMBER` | sim | dígitos com DDI |
+| `BLOB_READ_WRITE_TOKEN` | sim | cria o Blob store no projeto Vercel |
 
-Health check: `/api/health`.
+`MERCADOPAGO_ACCESS_TOKEN`, `MERCADOPAGO_PUBLIC_KEY`, `STORE_LATITUDE` e
+`STORE_LONGITUDE` estão reservadas: o código atual **não** as lê.
 
-Admin: `/admin/login`.
+`DEV_ALLOWED_ORIGINS` é só para desenvolvimento.
 
-Change the initial admin password immediately on first login. Customer passwords are hashed and sessions are invalidated whenever the admin password changes. Do not reuse credentials across environments.
+## 4. Upload de imagens
 
-## 5. Imagens
+- Produção: **Vercel Blob** (`BLOB_READ_WRITE_TOKEN`). Sem o token, o upload
+  responde `503` com erro controlado — não há gravação em disco, porque o
+  filesystem da Vercel é efêmero.
+- Desenvolvimento: `public/uploads/` com nome aleatório.
+- Formatos: JPEG, PNG, WebP, AVIF (SVG bloqueado). Limite de 10 MB.
+- Para imagens maiores, use client uploads do Vercel Blob.
 
-O painel usa Vercel Blob. O endpoint limita uploads de servidor a 4,5 MB e aceita JPG, PNG, WebP e AVIF. Para arquivos maiores, use client uploads.
+## 5. Operação
 
-## 6. Pagamento
+- **Liveness:** `GET /api/health` → `{"status":"ok"}` (não consulta banco).
+- **Readiness:** `GET /api/admin/health` → requer sessão admin; devolve
+  `{"status","database"}`.
+- **Admin:** `/admin/login`.
 
-O checkout atual funciona em modo demonstrativo. A captura de cartão não é persistida. Para pagamentos reais, conecte tokenização/gateway antes de colocar a opção de cartão em produção.
+### Primeiro acesso
+
+O seed cria `admin@triosabores.local` com `mustChangePassword = true`. O painel
+fica bloqueado até a troca da senha em **Configurações**. A senha inicial vem de
+`ADMIN_INITIAL_PASSWORD` e nunca é registrada em log.
+
+Em instalações que já têm admin, o seed só provisiona a senha se a conta ainda
+estiver no estado inicial (`sessionVersion = 0` e sem `mustChangePassword`), e
+não reseta uma senha já alterada.
+
+## 6. Segurança esperada em produção
+
+- HTTPS obrigatório (HSTS de 1 ano é enviado automaticamente).
+- Cookies `Secure`, `HttpOnly` e `SameSite=Strict`.
+- Rate limiting usa PostgreSQL compartilhado; se o tráfego crescer, migre para
+  Redis/Upstash mantendo a interface de `lib/rate-limit.ts`.
+- Não habilite `includeSubDomains`/`preload` no HSTS sem confirmar HTTPS em
+  todos os subdomínios.
+
+## 7. Pagamento
+
+O checkout funciona em modo demonstrativo: nenhum dado de cartão é capturado ou
+persistido, e o código PIX é ilustrativo. Para pagamentos reais, integre a
+tokenização do gateway antes de habilitar a opção de cartão em produção.

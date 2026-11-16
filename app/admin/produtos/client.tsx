@@ -68,7 +68,7 @@ export function ProductAdminForm({ categories }: { categories: { id: string; nam
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     const priceCents = parseBRL(f.price);
-    if (priceCents < 1) {
+    if (priceCents === null || priceCents < 1) {
       alert('Informe um preço válido maior que zero.');
       return;
     }

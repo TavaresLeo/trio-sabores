@@ -24,10 +24,14 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             <Image src={productImageFor(product)} alt={product.name} width={500} height={500} priority className={`product-image-${product.slug} object-cover`} />
           </div>
           <div className="product-detail-content">
-            <div className="product-rating">
-              <span className="stars"><Star size={15} fill="currentColor" /> {product.rating.toFixed(1)}</span>
-              <span className="review-count">({product.reviewsCount} avaliações)</span>
-            </div>
+            {product.reviewsCount > 0 && product.rating !== null ? (
+              <div className="product-rating">
+                <span className="stars"><Star size={15} fill="currentColor" /> {product.rating.toFixed(1)}</span>
+                <span className="review-count">({product.reviewsCount} avaliações)</span>
+              </div>
+            ) : (
+              <p className="review-count">Produto ainda sem avaliações.</p>
+            )}
             <h1 className="font-serif">{product.name}</h1>
             <strong className="product-detail-price">{formatBRL(product.priceCents)}</strong>
             <p className="product-description">{product.description}</p>
